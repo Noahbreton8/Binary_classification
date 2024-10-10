@@ -2,7 +2,6 @@ import A2helpers as helpers
 import numpy as np
 import scipy.optimize as optimize
 import cvxopt.solvers as solvers
-import math
 from cvxopt import matrix
 
 solvers.options['show_progress'] = False
@@ -21,7 +20,6 @@ def minBinDev(X, y, lamb):
     res = optimize.minimize(binomial_deviance, initial_w, args=(X, y, lamb, d))
     w0 = res.x[d]
     w = res.x[:d]
-    
     return w, w0
 
 # b)
@@ -69,8 +67,9 @@ def minHinge(X, y, lamb, stabilizer=1e-5):
     P = matrix(P)
 
     res = solvers.qp(P, q, G, H)
-    w = res["x"][:d]
-    w0 = res["x"][d]
+    res = res['x']
+    w = np.array(res[:d]).squeeze()
+    w0 = np.array(res[d])
     return w, w0
 
 #c)
