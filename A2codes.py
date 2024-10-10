@@ -8,41 +8,21 @@ from cvxopt import matrix
 solvers.options['show_progress'] = False
 
 #a)
-# def minBinDev(X, y, lamb):
-#     n,d = X.shape
-#     def binomial_deviance(w):
-        
-#         w0 = w[d]
-#         w = w[:d]
-#         term1 = -y * (X @ w + w0)
-#         term2 = np.logaddexp(0, term1)
-#         term3 = np.sum(term2) + lamb/2 * (w.T @ w)
-#         return term3
-    
-#     initial_w = np.zeros(d+1)
-#     res = optimize.minimize(binomial_deviance, initial_w)
-#     w = res.x[:d]
-#     w0 = res.x[d]
-#     #print(w, w0)
-#     return w, w0
-
 def binomial_deviance(w, X, y, lamb, d):
     w0 = w[d]
     w = w[:d]
-    term1 = -y * (X @ w + w0)  
-    term2 = np.logaddexp(0, term1) 
-    loss = np.sum(term2) + (lamb / 2) * (w.T @ w)
-    return loss
+    term1 = -y * (np.dot(X, w) + w0)[:, None]
+    term2 = np.logaddexp(0, term1)
+    return np.sum(term2) + (lamb/2) * np.sum(w**2)
 
 def minBinDev(X, y, lamb):
     n, d = X.shape
     initial_w = np.zeros(d + 1)
     res = optimize.minimize(binomial_deviance, initial_w, args=(X, y, lamb, d))
-    w = res.x[:d]
     w0 = res.x[d]
+    w = res.x[:d]
     
     return w, w0
-
 
 # b)
 def minHinge(X, y, lamb, stabilizer=1e-5):
@@ -89,21 +69,16 @@ def minHinge(X, y, lamb, stabilizer=1e-5):
     P = matrix(P)
 
     res = solvers.qp(P, q, G, H)
-    # print(res)
     w = res["x"][:d]
     w0 = res["x"][d]
-    # print(w, w0)
-    # print(res["x"], len(res["x"]),d)
     return w, w0
 
-# c)
+#c)
 def classify(Xtest, w, w0):
-    #print(Xtest.shape, w.shape)
-    return np.sign(Xtest @ w + w0)
+    return np.sign(Xtest @ w + w0)[:, None]
 
 def accuracy(y, yhat):
     return np.mean(y == yhat)
-
 
 #d)
 def synExperimentsRegularize():
@@ -131,22 +106,21 @@ def synExperimentsRegularize():
                 test_acc_bindev[i, j, r] = accuracy(ytest, classify(Xtest, w, w0))
                 
                 # Compute accuracies for hinge loss
-                # w, w0 = minHinge(Xtrain, ytrain, lamb)
-                # train_acc_hinge[i, j, r] = accuracy(ytrain, classify(Xtrain, w, w0))
-                # test_acc_hinge[i, j, r] = accuracy(ytest, classify(Xtest, w, w0))
+                w, w0 = minHinge(Xtrain, ytrain, lamb)
+                train_acc_hinge[i, j, r] = accuracy(ytrain, classify(Xtrain, w, w0))
+                test_acc_hinge[i, j, r] = accuracy(ytest, classify(Xtest, w, w0))
 
     # Compute the mean accuracies across runs
     train_acc_bindev_mean = np.mean(train_acc_bindev, axis=2)
     test_acc_bindev_mean = np.mean(test_acc_bindev, axis=2)
-    # train_acc_hinge_mean = np.mean(train_acc_hinge, axis=2)
-    # test_acc_hinge_mean = np.mean(test_acc_hinge, axis=2)
-    return train_acc_bindev_mean, test_acc_bindev_mean
-    # Combine binary deviance and hinge accuracies (resulting in 4x6 matrices)
-    
-    # train_acc = np.concatenate((train_acc_bindev_mean, train_acc_hinge_mean), axis = 1)
-    # test_acc = np.concatenate((test_acc_bindev_mean, test_acc_hinge_mean), axis = 1)
+    train_acc_hinge_mean = np.mean(train_acc_hinge, axis=2)
+    test_acc_hinge_mean = np.mean(test_acc_hinge, axis=2)
 
-    # return train_acc, test_acc
+    # Combine binary deviance and hinge accuracies (resulting in 4x6 matrices)
+    train_acc = np.concatenate((train_acc_bindev_mean, train_acc_hinge_mean), axis = 1)
+    test_acc = np.concatenate((test_acc_bindev_mean, test_acc_hinge_mean), axis = 1)
+
+    return train_acc, test_acc
 
 train, test = synExperimentsRegularize()
 print(train)
