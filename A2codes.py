@@ -215,18 +215,18 @@ def synExperimentsKernel():
                 test_acc_hinge[i, j, r] = accuracy(ytest, adjClassify(Xtest, a, a0, Xtrain, kernel))
 
     # Compute the mean accuracies across runs
-    train_acc_bindev_mean = np.mean(train_acc_bindev, axis=2)
-    test_acc_bindev_mean = np.mean(test_acc_bindev, axis=2)
-    train_acc_hinge_mean = np.mean(train_acc_hinge, axis=2)
-    test_acc_hinge_mean = np.mean(test_acc_hinge, axis=2)
+    train_acc_adj_bindev_mean = np.mean(train_acc_bindev, axis=2)
+    test_acc_adj_bindev_mean = np.mean(test_acc_bindev, axis=2)
+    train_acc_adj_hinge_mean = np.mean(train_acc_hinge, axis=2)
+    test_acc_adj_hinge_mean = np.mean(test_acc_hinge, axis=2)
     
     # TODO: compute the average accuracies over runs
     # TODO: combine accuracies (bindev and hinge)
     # TODO: return 5-by-6 train accuracy and 5-by-6 test accuracy
 
     # Combine binary deviance and hinge accuracies (resulting in 4x6 matrices)
-    train_acc = np.concatenate((train_acc_bindev_mean, train_acc_hinge_mean), axis = 1)
-    test_acc = np.concatenate((test_acc_bindev_mean, test_acc_hinge_mean), axis = 1)
+    train_acc = np.concatenate((train_acc_adj_bindev_mean, train_acc_adj_hinge_mean), axis = 1)
+    test_acc = np.concatenate((test_acc_adj_bindev_mean, test_acc_adj_hinge_mean), axis = 1)
 
     return train_acc, test_acc 
 
