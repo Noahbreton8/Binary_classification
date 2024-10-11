@@ -115,6 +115,121 @@ def synExperimentsRegularize():
 
     return train_acc, test_acc
 
-train, test = synExperimentsRegularize()
+# train, test = synExperimentsRegularize()
+# print(train)
+# print(test)
+
+#2a
+def adj_binomial_deviance(a, X, y, lamb, K):
+    a0 = a[-1]
+    a = a[:-1]
+    term1 = (np.dot(K, a) + a0)[:, None]
+    term2 = np.logaddexp(0, -y * term1)
+    return np.sum(term2) + (lamb/2) * np.dot(a, np.dot(K, a))
+
+def adjBinDev(X, y, lamb, kernel_func):
+    n, d = X.shape
+    K = kernel_func(X, X)
+    initial_a = np.zeros(n + 1)
+    res = optimize.minimize(adj_binomial_deviance, initial_a, args=(X, y, lamb, K))
+    return res.x[:-1], res.x[-1]
+
+# #b
+def adjHinge(X, y, lamb, kernel_func, stabilizer=1e-5):
+    n, d = X.shape
+    q = np.concatenate((np.zeros(n+1), np.ones(n)))
+    q = matrix(q)
+
+    K = kernel_func(X, X)
+
+    G11 = np.zeros((n,n))
+    G12 = np.zeros((n,1))
+    G13 = -np.eye(n)
+    G1 = np.hstack((G11, G12, G13))
+
+    G21 = -((y * np.eye(n)) @ K)
+    G22 = -y
+    G23 = -np.eye(n)
+    G2 = np.hstack((G21, G22, G23))
+
+    G = np.vstack((G1, G2))
+    G = matrix(G)
+
+    H = np.concatenate((np.zeros(n), -np.ones(n)))
+    H = matrix(H)
+
+    P11 = K * lamb #* np.eye(n)
+    P12 = np.zeros((n, 1))  
+    P13 = np.zeros((n, n))      
+    P21 = np.zeros((1, n))  
+    P22 = np.zeros((1, 1))  
+    P23 = np.zeros((1, n))  
+    P31 = np.zeros((n, n))  
+    P32 = np.zeros((n, 1))  
+    P33 = np.zeros((n, n))  
+
+    P1 = np.concatenate((P11,P12,P13), axis=1)
+    P2 = np.concatenate((P21,P22,P23), axis=1)
+    P3 = np.concatenate((P31,P32,P33), axis=1)
+    P = np.concatenate((P1,P2,P3), axis = 0)
+
+    P = P + stabilizer * np.eye(n+n+1)
+    P = matrix(P)
+
+    res = solvers.qp(P, q, G, H)
+    res = res['x']
+    a = np.array(res[:n]).squeeze()
+    a0 = np.array(res[n])
+    return a, a0 
+
+def adjClassify(Xtest, a, a0, X, kernel_func):
+    return np.sign(kernel_func(Xtest, X) @ a + a0)[:, None]
+
+def synExperimentsKernel():
+    n_runs = 10
+    n_train = 100
+    n_test = 1000
+    lamb = 0.001
+    kernel_list = [helpers.linearKernel,
+                    lambda X1, X2: helpers.polyKernel(X1, X2, 2),
+                    lambda X1, X2: helpers.polyKernel(X1, X2, 3),
+                    lambda X1, X2: helpers.gaussKernel(X1, X2, 1.0),
+                    lambda X1, X2: helpers.gaussKernel(X1, X2, 0.5)]
+    gen_model_list = [1, 2, 3]
+    train_acc_bindev = np.zeros([len(kernel_list), len(gen_model_list), n_runs])
+    test_acc_bindev = np.zeros([len(kernel_list), len(gen_model_list), n_runs])
+    train_acc_hinge = np.zeros([len(kernel_list), len(gen_model_list), n_runs])
+    test_acc_hinge = np.zeros([len(kernel_list), len(gen_model_list), n_runs])
+    for r in range(n_runs):
+        for i, kernel in enumerate(kernel_list):
+            for j, gen_model in enumerate(gen_model_list):
+                Xtrain, ytrain = helpers.generateData(n=n_train, gen_model=gen_model)
+                Xtest, ytest = helpers.generateData(n=n_test, gen_model=gen_model)
+                
+                a, a0 = adjBinDev(Xtrain, ytrain, lamb, kernel)
+                train_acc_bindev[i, j, r] = accuracy(ytrain, adjClassify(Xtrain, a, a0, Xtrain, kernel))
+                test_acc_bindev[i, j, r] = accuracy(ytest, adjClassify(Xtest, a, a0, Xtrain, kernel))
+                
+                a, a0 = adjHinge(Xtrain, ytrain, lamb, kernel)
+                train_acc_hinge[i, j, r] = accuracy(ytrain, adjClassify(Xtrain, a, a0, Xtrain, kernel))
+                test_acc_hinge[i, j, r] = accuracy(ytest, adjClassify(Xtest, a, a0, Xtrain, kernel))
+
+    # Compute the mean accuracies across runs
+    train_acc_bindev_mean = np.mean(train_acc_bindev, axis=2)
+    test_acc_bindev_mean = np.mean(test_acc_bindev, axis=2)
+    train_acc_hinge_mean = np.mean(train_acc_hinge, axis=2)
+    test_acc_hinge_mean = np.mean(test_acc_hinge, axis=2)
+    
+    # TODO: compute the average accuracies over runs
+    # TODO: combine accuracies (bindev and hinge)
+    # TODO: return 5-by-6 train accuracy and 5-by-6 test accuracy
+
+    # Combine binary deviance and hinge accuracies (resulting in 4x6 matrices)
+    train_acc = np.concatenate((train_acc_bindev_mean, train_acc_hinge_mean), axis = 1)
+    test_acc = np.concatenate((test_acc_bindev_mean, test_acc_hinge_mean), axis = 1)
+
+    return train_acc, test_acc 
+
+train, test = synExperimentsKernel()
 print(train)
 print(test)
