@@ -3,6 +3,7 @@ import numpy as np
 import scipy.optimize as optimize
 import cvxopt.solvers as solvers
 from cvxopt import matrix
+import pandas as pd
 
 solvers.options['show_progress'] = False
 
@@ -230,6 +231,82 @@ def synExperimentsKernel():
 
     return train_acc, test_acc 
 
-train, test = synExperimentsKernel()
-print(train)
-print(test)
+# train, test = synExperimentsKernel()
+# print(train)
+# print(test)
+
+#3a
+def dualHinge(X, y, lamb, kernel_func, stabilizer=1e-5):
+    print(X)
+    n, d = X.shape
+    K = kernel_func(X, X)
+    deltay = y * np.eye(n)
+
+    q = -np.ones(n)[:, None]
+    print(q.shape)
+    q = matrix(q)
+
+    P = -np.dot(deltay, np.dot(K, deltay))/lamb
+    P = P + stabilizer * np.eye(n)
+    print(P.shape)
+    P = matrix(P)
+
+    h = np.concatenate((np.zeros(n), np.ones(n)))[:, None]
+    print(h.shape)
+    h = matrix(h)
+
+    G1 = -np.eye(n)
+    G2 = np.eye(n)
+    G = np.vstack((G1, G2))
+    print(G.shape)
+    G = matrix(G)
+
+    b = np.array([0])  
+    b = np.reshape(b, (1,1)) 
+    print(b.shape)
+    b = matrix(b)
+
+    A = np.reshape(y, (1, n))
+    print(A.shape)
+    A = matrix(A)
+
+    res = solvers.qp(P, q, G, h) # A, b
+    res = res['x']
+    a = np.array(res[:n]).squeeze()
+
+    index = np.where(a < 0.00995 and a > 0.005)[0]
+    if index == None:
+        raise ValueError("Bad index")
+
+    index = index[np.argmin(np.abs(a[index]-0.5))]
+
+    b = y[index] - ((1/lamb) * np.dot(K[index, :] * deltay, a))
+
+    return a, b
+
+def dualClassify(Xtest, a, b, X, y, lamb, kernel_func):
+    return np.sign(kernel_func(Xtest, X)/lamb @ (y*np.eye()) * a + b)[:, None]
+
+
+# def cvMnist(dataset_folder, lamb_list, kernel_list, k=5):
+#     train_data = pd.read_csv(f"{dataset_folder}/A2train.csv", header=None).to_numpy()
+#     X = train_data[:, 1:] / 255.
+#     y = train_data[:, 0][:, None]
+#     y[y == 4] = -1
+#     y[y == 9] = 1
+#     cv_acc = np.zeros([k, len(lamb_list), len(kernel_list)])
+#     # TODO: perform any necessary setup
+#     for i, lamb in enumerate(lamb_list):
+#         for j, kernel_func in enumerate(kernel_list):
+#             for l in range(k):
+#                 Xtrain = X # TODO: obtain the training input
+#                 ytrain = # TODO: obtain the corresponding training label
+#                 Xval = # TODO: obtain the validation input
+#                 yval = # TODO: obtain the corresponding validation label
+#                 a, b = dualHinge(Xtrain, ytrain, lamb, kernel_func)
+#                 yhat = dualClassify(Xval, a, b, Xtrain, ytrain, lamb, kernel_func)
+#                 cv_acc[l, i, j] = # TODO: calculate validation accuracy
+#     # TODO: compute the average accuracies over k folds
+#     # TODO: identify the best lamb and kernel function
+#     # TODO: return a "len(lamb_list)-by-len(kernel_list)" accuracy variable, the best lamb and the best kernel
+#     return cv_acc, best_lamb, best_kernel

@@ -20,14 +20,14 @@ def _plotCls():
 
 	# Learn and plot results
 	# Primal
-	w, w0 = A2codes.minBinDev(Xtrain, ytrain, lamb)
-	plotModel(Xtrain, ytrain, w, w0, A2codes.classify)
+	# w, w0 = A2codes.minBinDev(Xtrain, ytrain, lamb)
+	# plotModel(Xtrain, ytrain, w, w0, A2codes.classify)
 	# Adjoint
-	a, a0 = A2codes.adjBinDev(Xtrain, ytrain, lamb, kernel_func)
-	plotAdjModel(Xtrain, ytrain, a, a0, kernel_func, A2codes.adjClassify)
+	# a, a0 = A2codes.adjBinDev(Xtrain, ytrain, lamb, kernel_func)
+	# plotAdjModel(Xtrain, ytrain, a, a0, kernel_func, A2codes.adjClassify)
 	# Dual
-	# a, b = A2codes.dualHinge(Xtrain, ytrain, lamb, kernel_func)
-	# plotDualModel(Xtrain, ytrain, a, b, lamb, kernel_func, A2codes.dualClassify)
+	a, b = A2codes.dualHinge(Xtrain, ytrain, lamb, kernel_func)
+	plotDualModel(Xtrain, ytrain, a, b, lamb, kernel_func, A2codes.dualClassify)
 
 
 if __name__ == "__main__":
