@@ -5,7 +5,7 @@
 #       This script is not meant to be thorough (it does not call all your functions).
 #       We will use a different script to test your codes. 
 import A2codes as A2codes
-from A2helpers import plotModel, plotAdjModel, plotDualModel, polyKernel, linearKernel, generateData
+from A2helpers import plotModel, plotAdjModel, plotDualModel, polyKernel, gaussKernel, linearKernel, generateData
 
 
 def _plotCls():
@@ -17,17 +17,17 @@ def _plotCls():
 
 	# Generate data
 	Xtrain, ytrain = generateData(n=n, gen_model=gen_model)
-
+	print(Xtrain.shape, ytrain.shape)
 	# Learn and plot results
 	# Primal
 	# w, w0 = A2codes.minBinDev(Xtrain, ytrain, lamb)
 	# plotModel(Xtrain, ytrain, w, w0, A2codes.classify)
 	# Adjoint
-	# a, a0 = A2codes.adjBinDev(Xtrain, ytrain, lamb, kernel_func)
-	# plotAdjModel(Xtrain, ytrain, a, a0, kernel_func, A2codes.adjClassify)
-	# Dual
-	a, b = A2codes.dualHinge(Xtrain, ytrain, lamb, kernel_func)
-	plotDualModel(Xtrain, ytrain, a, b, lamb, kernel_func, A2codes.dualClassify)
+	a, a0 = A2codes.adjHinge(Xtrain, ytrain, lamb, kernel_func)
+	#plotAdjModel(Xtrain, ytrain, a, a0, kernel_func, A2codes.adjClassify)
+	# # Dual
+	# a, b = A2codes.dualHinge(Xtrain, ytrain, lamb, kernel_func)
+	# plotDualModel(Xtrain, ytrain, a, b, lamb, kernel_func, A2codes.dualClassify)
 
 
 if __name__ == "__main__":

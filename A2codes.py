@@ -135,7 +135,7 @@ def adjBinDev(X, y, lamb, kernel_func):
     res = optimize.minimize(adj_binomial_deviance, initial_a, args=(X, y, lamb, K))
     return res.x[:-1], res.x[-1]
 
-# #b
+#b
 def adjHinge(X, y, lamb, kernel_func, stabilizer=1e-5):
     n, d = X.shape
     q = np.concatenate((np.zeros(n+1), np.ones(n)))
@@ -237,76 +237,112 @@ def synExperimentsKernel():
 
 #3a
 def dualHinge(X, y, lamb, kernel_func, stabilizer=1e-5):
-    print(X)
+    #print(X)
     n, d = X.shape
     K = kernel_func(X, X)
     deltay = y * np.eye(n)
 
-    q = -np.ones(n)[:, None]
-    print(q.shape)
+    q = -np.ones((n,1))
+    #print(q.shape)
     q = matrix(q)
 
-    P = -np.dot(deltay, np.dot(K, deltay))/lamb
+    P = (1/lamb) * deltay @ K @ deltay
     P = P + stabilizer * np.eye(n)
-    print(P.shape)
+    #print(P.shape)
     P = matrix(P)
 
-    h = np.concatenate((np.zeros(n), np.ones(n)))[:, None]
-    print(h.shape)
+    h = np.concatenate((np.zeros((n,1)), np.ones((n,1))))
+    #print(h.shape)
     h = matrix(h)
 
     G1 = -np.eye(n)
     G2 = np.eye(n)
     G = np.vstack((G1, G2))
-    print(G.shape)
+    #print(G.shape)
     G = matrix(G)
 
-    b = np.array([0])  
-    b = np.reshape(b, (1,1)) 
-    print(b.shape)
+    b = np.array([[0.]])  
     b = matrix(b)
 
-    A = np.reshape(y, (1, n))
-    print(A.shape)
+    A = np.array(y.T, dtype=float)
+    #print(A)
     A = matrix(A)
 
-    res = solvers.qp(P, q, G, h) # A, b
+    res = solvers.qp(P, q, G, h, A, b) # A, b
     res = res['x']
-    a = np.array(res[:n]).squeeze()
+    a = np.array(res[:n])
 
-    index = np.where(a < 0.00995 and a > 0.005)[0]
-    if index == None:
+    index = np.where(a)[0]
+    if index.size == 0:  # Check if the index is empty
         raise ValueError("Bad index")
+        
+    #print(index)
 
     index = index[np.argmin(np.abs(a[index]-0.5))]
 
-    b = y[index] - ((1/lamb) * np.dot(K[index, :] * deltay, a))
+    b = y[index] - ((1/lamb) * np.dot(np.dot(K[index, :], deltay), a))
+    # print(b)
+    # print(y[index])
 
     return a, b
 
 def dualClassify(Xtest, a, b, X, y, lamb, kernel_func):
-    return np.sign(kernel_func(Xtest, X)/lamb @ (y*np.eye()) * a + b)[:, None]
+    # print(a.shape)
+    # print(b.shape)
+    # print(X.shape)
+    # print(y.shape)
+    # print(Xtest.shape)
+    
+    K = kernel_func(Xtest, X)
+    deltay = y*np.eye(len(y))
+    # print(deltay.shape)
+    # print(K.shape)
+    yhat = (1 / lamb) * (K @ deltay @ a) + b
+    return np.sign(yhat)
 
 
-# def cvMnist(dataset_folder, lamb_list, kernel_list, k=5):
-#     train_data = pd.read_csv(f"{dataset_folder}/A2train.csv", header=None).to_numpy()
-#     X = train_data[:, 1:] / 255.
-#     y = train_data[:, 0][:, None]
-#     y[y == 4] = -1
-#     y[y == 9] = 1
-#     cv_acc = np.zeros([k, len(lamb_list), len(kernel_list)])
-#     # TODO: perform any necessary setup
-#     for i, lamb in enumerate(lamb_list):
-#         for j, kernel_func in enumerate(kernel_list):
-#             for l in range(k):
-#                 Xtrain = X # TODO: obtain the training input
-#                 ytrain = # TODO: obtain the corresponding training label
-#                 Xval = # TODO: obtain the validation input
-#                 yval = # TODO: obtain the corresponding validation label
-#                 a, b = dualHinge(Xtrain, ytrain, lamb, kernel_func)
-#                 yhat = dualClassify(Xval, a, b, Xtrain, ytrain, lamb, kernel_func)
-#                 cv_acc[l, i, j] = # TODO: calculate validation accuracy
-#     # TODO: compute the average accuracies over k folds
-#     # TODO: identify the best lamb and kernel function
-#     # TODO: return a "len(lamb_list)-by-len(kernel_list)" accuracy variable, the best lamb and the best kernel
-#     return cv_acc, best_lamb, best_kernel
+def cvMnist(dataset_folder, lamb_list, kernel_list, k=5):
+    train_data = pd.read_csv(f"{dataset_folder}/A2train.csv", header=None).to_numpy()
+    X = train_data[:, 1:] / 255.
+    y = train_data[:, 0][:, None]
+    y[y == 4] = -1
+    y[y == 9] = 1
+    cv_acc = np.zeros([k, len(lamb_list), len(kernel_list)])
+    # TODO: perform any necessary setup
+    k_sectionsize = X.shape[0]//k
+
+    for i, lamb in enumerate(lamb_list):
+        for j, kernel_func in enumerate(kernel_list):
+            for l in range(k):
+                Xtrain = np.concatenate((X[:l*k_sectionsize],X[(l+1)*k_sectionsize:]))# TODO: obtain the training input
+                ytrain = np.concatenate((y[:l*k_sectionsize], y[(l+1)*k_sectionsize:]))# TODO: obtain the corresponding training label
+                Xval = X[l*k_sectionsize:(l+1)*k_sectionsize] # TODO: obtain the validation input
+                yval = y[l*k_sectionsize:(l+1)*k_sectionsize]# TODO: obtain the corresponding validation label
+                a, b = dualHinge(Xtrain, ytrain, lamb, kernel_func)
+                yhat = dualClassify(Xval, a, b, Xtrain, ytrain, lamb, kernel_func)
+                cv_acc[l, i, j] = accuracy(yval, yhat)# TODO: calculate validation accuracy
+    
+
+    # TODO: compute the average accuracies over k folds
+    mean_cv_acc = np.mean(cv_acc, axis=0)
+
+    # TODO: identify the best lamb and kernel function
+    index = np.where(mean_cv_acc == np.max(mean_cv_acc))
+    #print(index)
+    best_lamb = lamb_list[index[0][0]]
+    best_kernel = kernel_list[index[1][0]]
+    # TODO: return a "len(lamb_list)-by-len(kernel_list)" accuracy variable, the best lamb and the best kernel
+    return mean_cv_acc, best_lamb, index[1][0]
+
+# kernel_list = [helpers.linearKernel,
+#                     lambda X1, X2: helpers.polyKernel(X1, X2, 2),
+#                     # lambda X1, X2: helpers.polyKernel(X1, X2, 3),
+#                     # lambda X1, X2: helpers.gaussKernel(X1, X2, 1.0),
+#                     lambda X1, X2: helpers.gaussKernel(X1, X2, 0.5)]
+
+# lamb_list = [0.01, 0.1] 
+
+# cv_acc, best_lamb, best_kernel = cvMnist("data", lamb_list, kernel_list)
+# print(cv_acc)
+# print(best_lamb)
+# print(best_kernel)
